@@ -13,7 +13,7 @@ namespace SourceRcon
 	{
 		public SourceRcon()
 		{
-			S = new Socket(AddressFamily.InterNetwork,SocketType.Stream,ProtocolType.Tcp);
+			S = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 			PacketCount = 0;
 
 #if DEBUG
