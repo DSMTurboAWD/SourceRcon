@@ -6,7 +6,7 @@ Forked from @aiusepsi/SourceRcon
 
 Version History:
 
-#### TODO - Upgrade to .NET 6 for cross platform
+1.1.3 Switched to .NET (Core) 6
 
 1.1.2   Switched to .NET Framework 4.8
 
