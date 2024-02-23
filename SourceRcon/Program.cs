@@ -1,35 +1,27 @@
 using System;
 using System.Net;
 using System.Threading;
+using SourceRcon.Models;
 
 
 namespace SourceRcon
 {
-	/// <summary>
-	/// Summary description for Class1.
-	/// </summary>
 	class Program
 	{
-		/// <summary>
-		/// The main entry point for the application.
-		/// </summary>
 		[STAThread]
 		static void Main(string[] args)
 		{
-            string ipaddress, password, command;
-            int port;
 
-            bool interactive;
-
+            var commands = new Commands();
             if (args.Length > 0)
             {
                 if (args.Length == 4)
                 {
-                    interactive = false;
-                    ipaddress = args[0];
-                    port = int.Parse(args[1]);
-                    password = args[2];
-                    command = args[3];
+                    commands.Interactive = false;
+                    commands.IpAddress = args[0];
+                    commands.Port = int.Parse(args[1]);
+                    commands.Password = args[2];
+                    commands.Command = args[3];
                 }
 
                 else
@@ -43,37 +35,37 @@ namespace SourceRcon
             }
             else
             {
-                interactive = true;
+                commands.Interactive = true;
                 Console.WriteLine("Enter IP Address:");
-                ipaddress = Console.ReadLine();
+                commands.IpAddress = Console.ReadLine();
                 Console.WriteLine("Enter port:");
-                port = int.Parse(Console.ReadLine());
+                commands.Port = int.Parse(Console.ReadLine());
                 Console.WriteLine("Enter password:");
-                password = Console.ReadLine();
-                command = null;
+                commands.Password = Console.ReadLine();
+                commands.Command = null;
             }
 
-			SourceRcon Sr = new SourceRcon();
-			Sr.Errors += new StringOutput(ErrorOutput);
-			Sr.ServerOutput += new StringOutput(ConsoleOutput);
+			var rcon = new SourceRcon();
+			rcon.Errors += new StringOutput(ErrorOutput);
+			rcon.ServerOutput += new StringOutput(ConsoleOutput);
 
-            if (Sr.Connect(new IPEndPoint(IPAddress.Parse(ipaddress), port), password))
+            if (rcon.Connect(new IPEndPoint(IPAddress.Parse(commands.IpAddress), commands.Port), commands.Password))
 			{
-				while(!Sr.Connected)
+				while (!rcon.Connected)
 				{
 					Thread.Sleep(10);
 				}
-                if(interactive)
+                if (commands.Interactive)
                 {
                     Console.WriteLine("Ready for commands:");
 				    while(true)
 				    {
-				    	Sr.ServerCommand(Console.ReadLine());
+				    	rcon.ServerCommand(Console.ReadLine());
 				    }
                 }
                 else
                 {
-                    Sr.ServerCommand(command);
+                    rcon.ServerCommand(commands.Command);
                     Thread.Sleep(1000);
                     return;
                 }
@@ -87,12 +79,12 @@ namespace SourceRcon
 
 		static void ErrorOutput(string input)
 		{
-			Console.WriteLine("Error: {0}", input);
+			Console.WriteLine($"Error: {input}");
 		}
 
 		static void ConsoleOutput(string input)
 		{
-			Console.WriteLine("Console: {0}", input);
+			Console.WriteLine($"Console: {input}");
 		}
 
 	}

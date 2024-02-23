@@ -107,9 +107,8 @@ namespace SourceRcon
 				state.BytesSoFar += bytesgotten;
 				requestSuccess = true;
 
-#if DEBUG
-				Console.WriteLine("Receive Callback. Packet: {0} First packet: {1}, Bytes so far: {2}",state.PacketCount,state.IsPacketLength,state.BytesSoFar);
-#endif
+				Console.WriteLine($"Receive Callback. Packet: {state.PacketCount} First packet: {state.IsPacketLength}, Bytes so far: {state.BytesSoFar}");
+
 
 			}
 			catch(SocketException)
