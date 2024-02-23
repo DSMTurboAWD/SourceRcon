@@ -13,7 +13,7 @@ namespace SourceRcon
 	{
 		public SourceRcon()
 		{
-			S = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+			Sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 			PacketCount = 0;
 
 #if DEBUG
@@ -25,7 +25,7 @@ namespace SourceRcon
 		{
 			try
 			{
-				S.Connect(Server);
+				Sock.Connect(Server);
 			}
 			catch(SocketException)
 			{
@@ -59,10 +59,10 @@ namespace SourceRcon
 			}
 		}
 	
-		void SendRCONPacket(RCONPacket p)
+		void SendRCONPacket(RCONPacket packet)
 		{
-			byte[] Packet = p.OutputAsBytes();
-			S.BeginSend(Packet,0,Packet.Length,SocketFlags.None,new AsyncCallback(SendCallback),this);
+			var Packet = packet.OutputAsBytes();
+			Sock.BeginSend(Packet,0,Packet.Length,SocketFlags.None,new AsyncCallback(SendCallback),this);
 		}
 
 		bool connected;
@@ -71,16 +71,16 @@ namespace SourceRcon
 			get { return connected; }
 		}
 
-		void SendCallback(IAsyncResult ar)
+		private async void SendCallback(IAsyncResult result)
 		{
-			S.EndSend(ar);
+			Sock.EndSend(result);
 		}
 
 		int PacketCount;
 
 		void StartGetNewPacket()
 		{
-			RecState state = new RecState();
+			RequestState state = new RequestState();
 			state.IsPacketLength = true;
 			state.Data = new byte[4];
 			state.PacketCount = PacketCount;
@@ -88,27 +88,27 @@ namespace SourceRcon
 #if DEBUG
 			TempPackets.Add(state);
 #endif
-			S.BeginReceive(state.Data,0,4,SocketFlags.None,new AsyncCallback(ReceiveCallback),state);
+			Sock.BeginReceive(state.Data,0,4,SocketFlags.None,new AsyncCallback(ReceiveCallback),state);
 		}
 
 #if DEBUG
 		public ArrayList TempPackets;
 #endif
 
-		void ReceiveCallback(IAsyncResult ar)
+		void ReceiveCallback(IAsyncResult result)
 		{
-			bool recsuccess = false;
-			RecState state = null;
+			bool requestSuccess = false;
+			RequestState state = null;
 
 			try
 			{
-				int	bytesgotten = S.EndReceive(ar);
-				state = (RecState)ar.AsyncState;
+				int	bytesgotten = Sock.EndReceive(result);
+				state = (RequestState)result.AsyncState;
 				state.BytesSoFar += bytesgotten;
-				recsuccess = true;
+				requestSuccess = true;
 
 #if DEBUG
-			Console.WriteLine("Receive Callback. Packet: {0} First packet: {1}, Bytes so far: {2}",state.PacketCount,state.IsPacketLength,state.BytesSoFar);
+				Console.WriteLine("Receive Callback. Packet: {0} First packet: {1}, Bytes so far: {2}",state.PacketCount,state.IsPacketLength,state.BytesSoFar);
 #endif
 
 			}
@@ -117,11 +117,11 @@ namespace SourceRcon
 				OnError(ConnectionClosed);
 			}
 
-			if(recsuccess)
+			if(requestSuccess)
 			ProcessIncomingData(state);
 		}
 
-		void ProcessIncomingData(RecState state)
+		void ProcessIncomingData(RequestState state)
 		{
 			if(state.IsPacketLength)
 			{
@@ -131,7 +131,7 @@ namespace SourceRcon
 				state.IsPacketLength = false;
 				state.BytesSoFar = 0;
 				state.Data = new byte[state.PacketLength];
-				S.BeginReceive(state.Data,0,state.PacketLength,SocketFlags.None,new AsyncCallback(ReceiveCallback),state);
+				Sock.BeginReceive(state.Data,0,state.PacketLength,SocketFlags.None,new AsyncCallback(ReceiveCallback),state);
 			}
 			else
 			{
@@ -140,7 +140,7 @@ namespace SourceRcon
 				if(state.BytesSoFar < state.PacketLength)
 				{
 					// Missing data.
-					S.BeginReceive(state.Data,state.BytesSoFar,state.PacketLength - state.BytesSoFar,SocketFlags.None,new AsyncCallback(ReceiveCallback),state);
+					Sock.BeginReceive(state.Data,state.BytesSoFar,state.PacketLength - state.BytesSoFar,SocketFlags.None,new AsyncCallback(ReceiveCallback),state);
 				}
 				else
 				{
@@ -233,15 +233,15 @@ namespace SourceRcon
 		public static string UnknownResponseType = "Unknown response";
 		public static string GotJunkPacket = "Had junk packet. This is normal.";
 
-		Socket S;
+		Socket Sock;
 	}
 
 	public delegate void StringOutput(string output);
 	public delegate void BoolInfo(bool info);
 
-	internal class RecState
+	internal class RequestState
 	{
-		internal RecState()
+		internal RequestState()
 		{
 			PacketLength = -1;
 			BytesSoFar = 0;
@@ -262,93 +262,87 @@ namespace SourceRcon
 		internal RCONPacket()
 		{
 			RequestId = 0;
-			String1 = "blah";
-			String2 = String.Empty;
+			String1 = "Test String";
+			String2 = string.Empty;
 			ServerDataSent = SERVERDATA_sent.None;
 			ServerDataReceived = SERVERDATA_rec.None;
 		}
 
 		internal byte[] OutputAsBytes()
 		{
-			byte[] packetsize;
-			byte[] reqid;
-			byte[] serverdata;
-			byte[] bstring1;
-			byte[] bstring2;
 
-            UTF8Encoding utf = new UTF8Encoding();
+            var utf = new UTF8Encoding();
 			
-			bstring1 = utf.GetBytes(String1);
-			bstring2 = utf.GetBytes(String2);
+			var byteString1 = utf.GetBytes(String1);
+			var byteString2 = utf.GetBytes(String2);
 
-			serverdata = BitConverter.GetBytes((int)ServerDataSent);
-			reqid = BitConverter.GetBytes(RequestId);
+			var serverdata = BitConverter.GetBytes((int)ServerDataSent);
+			var reqid = BitConverter.GetBytes(RequestId);
 
 			// Compose into one packet.
-			byte[] FinalPacket = new byte[4 + 4 + 4 + bstring1.Length + 1 + bstring2.Length + 1];
-			packetsize = BitConverter.GetBytes(FinalPacket.Length - 4);
+			var FinalPacket = new byte[4 + 4 + 4 + byteString1.Length + 1 + byteString2.Length + 1];
+			var packetsize = BitConverter.GetBytes(FinalPacket.Length - 4) ?? Array.Empty<byte>();
 
-			int BPtr = 0;
-			packetsize.CopyTo(FinalPacket,BPtr);
-			BPtr += 4;
+			var bytePointer = 0;
+			packetsize.CopyTo(FinalPacket,bytePointer);
+			bytePointer += 4;
 
-			reqid.CopyTo(FinalPacket,BPtr);
-			BPtr += 4;
+			reqid.CopyTo(FinalPacket,bytePointer);
+			bytePointer += 4;
 
-			serverdata.CopyTo(FinalPacket,BPtr);
-			BPtr += 4;
+			serverdata.CopyTo(FinalPacket,bytePointer);
+			bytePointer += 4;
 
-			bstring1.CopyTo(FinalPacket,BPtr);
-			BPtr += bstring1.Length;
+			byteString1.CopyTo(FinalPacket,bytePointer);
+			bytePointer += byteString1.Length;
 
-			FinalPacket[BPtr] = (byte)0;
-			BPtr++;
+			FinalPacket[bytePointer] = (byte)0;
+			bytePointer++;
 
-			bstring2.CopyTo(FinalPacket,BPtr);
-			BPtr += bstring2.Length;
+			byteString2.CopyTo(FinalPacket,bytePointer);
+			bytePointer += byteString2.Length;
 
-			FinalPacket[BPtr] = (byte)0;
-			BPtr++;
+			FinalPacket[bytePointer] = (byte)0;
+			bytePointer++;
 
 			return FinalPacket;
 		}
 
-		internal void ParseFromBytes(byte[] bytes, SourceRcon parent)
+		internal void ParseFromBytes(byte[] inputBytes, SourceRcon parent)
 		{
-			int BPtr = 0;
-			ArrayList stringcache;
-            UTF8Encoding utf = new UTF8Encoding();
+			var bytePointer = 0;
+
+            var utf = new UTF8Encoding();
 
 			// First 4 bytes are ReqId.
-			RequestId = BitConverter.ToInt32(bytes,BPtr);
-			BPtr += 4;
+			RequestId = BitConverter.ToInt32(inputBytes,bytePointer);
+			bytePointer += 4;
 			// Next 4 are server data.
-			ServerDataReceived = (SERVERDATA_rec)BitConverter.ToInt32(bytes,BPtr);
-			BPtr += 4;
+			ServerDataReceived = (SERVERDATA_rec)BitConverter.ToInt32(inputBytes,bytePointer);
+			bytePointer += 4;
 			// string1 till /0
-			stringcache = new ArrayList();
-			while(bytes[BPtr] != 0)
+			var stringcache = new ArrayList();
+			while(inputBytes[bytePointer] != 0)
 			{
-				stringcache.Add(bytes[BPtr]);
-				BPtr++;
+				stringcache.Add(inputBytes[bytePointer]);
+				bytePointer++;
 			}
 			String1 = utf.GetString((byte[])stringcache.ToArray(typeof(byte)));
-			BPtr++;
+			bytePointer++;
 
 			// string2 till /0
 
 			stringcache = new ArrayList();
-			while(bytes[BPtr] != 0)
+			while(inputBytes[bytePointer] != 0)
 			{
-				stringcache.Add(bytes[BPtr]);
-				BPtr++;
+				stringcache.Add(inputBytes[bytePointer]);
+				bytePointer++;
 			}
 			String2 = utf.GetString((byte[])stringcache.ToArray(typeof(byte)));
-			BPtr++;
+			bytePointer++;
 
 			// Repeat if there's more data?
-
-			if(BPtr != bytes.Length)
+			if(bytePointer != inputBytes.Length)
 			{
 				parent.OnError("Urk, extra data!");
 			}
@@ -368,10 +362,10 @@ namespace SourceRcon
 			None = 255
 		}
 
-		internal int RequestId;
-		internal string String1;
-		internal string String2;
-		internal RCONPacket.SERVERDATA_sent ServerDataSent;
-		internal RCONPacket.SERVERDATA_rec ServerDataReceived;
+		public int RequestId {get; set;}
+		public string String1 { get; set;}
+		public string String2 { get; set; }
+		public RCONPacket.SERVERDATA_sent ServerDataSent { get; set;}
+		public RCONPacket.SERVERDATA_rec ServerDataReceived { get; set;}
 	}
 }
