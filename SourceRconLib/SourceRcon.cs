@@ -16,9 +16,6 @@ namespace SourceRcon
 			Sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 			PacketCount = 0;
 
-#if DEBUG
-			TempPackets = new ArrayList();
-#endif
 		}
 
 		public bool Connect(IPEndPoint Server, string password)
@@ -34,12 +31,12 @@ namespace SourceRcon
 				return false;
 			}
 
-			RCONPacket SA = new RCONPacket();
-			SA.RequestId = 1;
-			SA.String1 = password;
-			SA.ServerDataSent = RCONPacket.SERVERDATA_sent.SERVERDATA_AUTH;
+			var packet = new RCONPacket();
+			packet.RequestId = 1;
+			packet.String1 = password;
+			packet.ServerDataSent = RCONPacket.SERVERDATA_sent.SERVERDATA_AUTH;
 
-			SendRCONPacket(SA);
+			SendRCONPacket(packet);
 			
 			// This is the first time we've sent, so we can start listening now!
 			StartGetNewPacket();
@@ -47,14 +44,17 @@ namespace SourceRcon
 			return true;
 		}
 
-		public void ServerCommand(string command)
+		public void ServerCommand(string command, string? command2 = null)
 		{
-			if(connected)
+			if (connected)
 			{
-				RCONPacket PacketToSend = new RCONPacket();
-				PacketToSend.RequestId = 2;
-				PacketToSend.ServerDataSent = RCONPacket.SERVERDATA_sent.SERVERDATA_EXECCOMMAND;
-				PacketToSend.String1 = command;
+				var PacketToSend = new RCONPacket
+				{
+					RequestId = 2,
+					ServerDataSent = RCONPacket.SERVERDATA_sent.SERVERDATA_EXECCOMMAND,
+					String1 = command
+				};
+
 				SendRCONPacket(PacketToSend);
 			}
 		}
@@ -85,15 +85,9 @@ namespace SourceRcon
 			state.Data = new byte[4];
 			state.PacketCount = PacketCount;
 			PacketCount++;
-#if DEBUG
-			TempPackets.Add(state);
-#endif
+
 			Sock.BeginReceive(state.Data,0,4,SocketFlags.None,new AsyncCallback(ReceiveCallback),state);
 		}
-
-#if DEBUG
-		public ArrayList TempPackets;
-#endif
 
 		void ReceiveCallback(IAsyncResult result)
 		{
@@ -118,7 +112,8 @@ namespace SourceRcon
 
 			if (requestSuccess)
 			{
-				ProcessIncomingData(state);
+				if (state.BytesSoFar > 0) { ProcessIncomingData(state); }
+				return;
 			}
 		}
 
@@ -162,16 +157,21 @@ namespace SourceRcon
 			}
 		}
 
-		void ProcessResponse(RCONPacket P)
+		void ProcessResponse(RCONPacket packet)
 		{
-			switch(P.ServerDataReceived)
+			switch(packet.ServerDataReceived)
 			{
 				case RCONPacket.SERVERDATA_rec.SERVERDATA_AUTH_RESPONSE:
-					if(P.RequestId != -1)
+					if(packet.RequestId != -1)
 					{
 						// Connected.
 						connected = true;
-						OnError(ConnectionSuccessString);
+						Console.WriteLine();
+						Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine(ConnectionSuccessString);
+						Console.ResetColor();
+                        Console.WriteLine("========================= Welcome ========================");
+						Console.WriteLine();						
 						OnConnectionSuccess(true);
 					}
 					else
@@ -182,14 +182,14 @@ namespace SourceRcon
 					}
 					break;
 				case RCONPacket.SERVERDATA_rec.SERVERDATA_RESPONSE_VALUE:
-					if(hadjunkpacket)
+					if (!string.IsNullOrEmpty(packet.String1))
 					{
 						// Real packet!
-						OnServerOutput(P.String1);
+						OnServerOutput(packet.String1);
+						if (!string.IsNullOrEmpty(packet.String2)) { OnServerOutput(packet.String2); }
 					}
 					else
 					{
-						hadjunkpacket = true;
 						OnError(GotJunkPacket);
 					}
 					break;
@@ -198,8 +198,6 @@ namespace SourceRcon
 					break;
 			}
 		}
-
-		bool hadjunkpacket;
 
 		internal void OnServerOutput(string output)
 		{

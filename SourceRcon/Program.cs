@@ -40,7 +40,7 @@ namespace SourceRcon
                 Console.WriteLine("Welcome to the Remote Console Application");
                 Console.WriteLine("Developed by Sterling Development");
                 Console.WriteLine($"Version: {Assembly.GetExecutingAssembly().GetName().Version.ToString()}");
-                Console.WriteLine("Start by entering an IP address");
+                Console.WriteLine();
                 Console.WriteLine("==========================================================");
                 Console.WriteLine();
 
