@@ -71,7 +71,7 @@ namespace SourceRcon
 			get { return connected; }
 		}
 
-		private async void SendCallback(IAsyncResult result)
+		private void SendCallback(IAsyncResult result)
 		{
 			Sock.EndSend(result);
 		}
@@ -348,24 +348,24 @@ namespace SourceRcon
 			}
 		}
 
-		public enum SERVERDATA_sent : int
+		internal enum SERVERDATA_sent
 		{
 			SERVERDATA_AUTH = 3,
 			SERVERDATA_EXECCOMMAND = 2,
 			None = 255
 		}
 
-		public enum SERVERDATA_rec : int
+		internal enum SERVERDATA_rec
 		{
 			SERVERDATA_RESPONSE_VALUE = 0,
 			SERVERDATA_AUTH_RESPONSE = 2,
 			None = 255
 		}
 
-		public int RequestId {get; set;}
-		public string String1 { get; set;}
-		public string String2 { get; set; }
-		public RCONPacket.SERVERDATA_sent ServerDataSent { get; set;}
-		public RCONPacket.SERVERDATA_rec ServerDataReceived { get; set;}
+		internal int RequestId {get; set;}
+		internal string String1 { get; set;}
+		internal string String2 { get; set; }
+		internal RCONPacket.SERVERDATA_sent ServerDataSent { get; set;}
+		internal RCONPacket.SERVERDATA_rec ServerDataReceived { get; set;}
 	}
 }
