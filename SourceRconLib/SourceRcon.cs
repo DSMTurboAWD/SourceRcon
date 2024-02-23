@@ -3,6 +3,9 @@ using System.Text;
 using System.Net;
 using System.Net.Sockets;
 using System.Collections;
+using SourceRconLib.Models;
+using Microsoft.VisualBasic;
+using static SourceRconLib.Models.RconPacket;
 
 namespace SourceRcon
 {
@@ -11,7 +14,7 @@ namespace SourceRcon
 	/// </summary>
 	public class SourceRcon
 	{
-		public SourceRcon()
+        public SourceRcon()
 		{
 			Sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 			PacketCount = 0;
@@ -31,10 +34,10 @@ namespace SourceRcon
 				return false;
 			}
 
-			var packet = new RCONPacket();
+			var packet = new RconPacket();
 			packet.RequestId = 1;
 			packet.String1 = password;
-			packet.ServerDataSent = RCONPacket.SERVERDATA_sent.SERVERDATA_AUTH;
+			packet.ServerDataSent = SERVERDATA_sent.SERVERDATA_AUTH;
 
 			SendRCONPacket(packet);
 			
@@ -48,10 +51,10 @@ namespace SourceRcon
 		{
 			if (connected)
 			{
-				var PacketToSend = new RCONPacket
+				var PacketToSend = new RconPacket
 				{
 					RequestId = 2,
-					ServerDataSent = RCONPacket.SERVERDATA_sent.SERVERDATA_EXECCOMMAND,
+					ServerDataSent = SERVERDATA_sent.SERVERDATA_EXECCOMMAND,
 					String1 = command
 				};
 
@@ -59,7 +62,7 @@ namespace SourceRcon
 			}
 		}
 	
-		void SendRCONPacket(RCONPacket packet)
+		void SendRCONPacket(RconPacket packet)
 		{
 			var Packet = packet.OutputAsBytes();
 			Sock.BeginSend(Packet,0,Packet.Length,SocketFlags.None,new AsyncCallback(SendCallback),this);
@@ -146,7 +149,7 @@ namespace SourceRcon
 #endif
 					if (state.Data.Length < 1) return;
 
-					RCONPacket RetPack = new RCONPacket();
+					var RetPack = new RconPacket();
 					RetPack.ParseFromBytes(state.Data,this);
 
 					ProcessResponse(RetPack);
@@ -157,11 +160,11 @@ namespace SourceRcon
 			}
 		}
 
-		void ProcessResponse(RCONPacket packet)
+		void ProcessResponse(RconPacket packet)
 		{
 			switch(packet.ServerDataReceived)
 			{
-				case RCONPacket.SERVERDATA_rec.SERVERDATA_AUTH_RESPONSE:
+				case SERVERDATA_rec.SERVERDATA_AUTH_RESPONSE:
 					if(packet.RequestId != -1)
 					{
 						// Connected.
@@ -181,7 +184,7 @@ namespace SourceRcon
 						OnConnectionSuccess(false);
 					}
 					break;
-				case RCONPacket.SERVERDATA_rec.SERVERDATA_RESPONSE_VALUE:
+				case SERVERDATA_rec.SERVERDATA_RESPONSE_VALUE:
 					if (!string.IsNullOrEmpty(packet.String1))
 					{
 						// Real packet!
@@ -239,133 +242,4 @@ namespace SourceRcon
 	public delegate void StringOutput(string output);
 	public delegate void BoolInfo(bool info);
 
-	internal class RequestState
-	{
-		internal RequestState()
-		{
-			PacketLength = -1;
-			BytesSoFar = 0;
-			IsPacketLength = false;
-		}
-
-		public int PacketCount;
-		public int PacketLength;
-		public int BytesSoFar;
-		public bool IsPacketLength;
-		public byte[] Data;
-	}
-
-	
-
-	internal class RCONPacket
-	{
-		internal RCONPacket()
-		{
-			RequestId = 0;
-			String1 = "Test String";
-			String2 = string.Empty;
-			ServerDataSent = SERVERDATA_sent.None;
-			ServerDataReceived = SERVERDATA_rec.None;
-		}
-
-		internal byte[] OutputAsBytes()
-		{
-
-            var utf = new UTF8Encoding();
-			
-			var byteString1 = utf.GetBytes(String1);
-			var byteString2 = utf.GetBytes(String2);
-
-			var serverdata = BitConverter.GetBytes((int)ServerDataSent);
-			var reqid = BitConverter.GetBytes(RequestId);
-
-			// Compose into one packet.
-			var FinalPacket = new byte[4 + 4 + 4 + byteString1.Length + 1 + byteString2.Length + 1];
-			var packetsize = BitConverter.GetBytes(FinalPacket.Length - 4) ?? Array.Empty<byte>();
-
-			var bytePointer = 0;
-			packetsize.CopyTo(FinalPacket,bytePointer);
-			bytePointer += 4;
-
-			reqid.CopyTo(FinalPacket,bytePointer);
-			bytePointer += 4;
-
-			serverdata.CopyTo(FinalPacket,bytePointer);
-			bytePointer += 4;
-
-			byteString1.CopyTo(FinalPacket,bytePointer);
-			bytePointer += byteString1.Length;
-
-			FinalPacket[bytePointer] = (byte)0;
-			bytePointer++;
-
-			byteString2.CopyTo(FinalPacket,bytePointer);
-			bytePointer += byteString2.Length;
-
-			FinalPacket[bytePointer] = (byte)0;
-			bytePointer++;
-
-			return FinalPacket;
-		}
-
-		internal void ParseFromBytes(byte[] inputBytes, SourceRcon parent)
-		{
-			var bytePointer = 0;
-
-            var utf = new UTF8Encoding();
-
-			// First 4 bytes are ReqId.
-			RequestId = BitConverter.ToInt32(inputBytes,bytePointer);
-			bytePointer += 4;
-			// Next 4 are server data.
-			ServerDataReceived = (SERVERDATA_rec)BitConverter.ToInt32(inputBytes,bytePointer);
-			bytePointer += 4;
-			// string1 till /0
-			var stringcache = new ArrayList();
-			while(inputBytes[bytePointer] != 0)
-			{
-				stringcache.Add(inputBytes[bytePointer]);
-				bytePointer++;
-			}
-			String1 = utf.GetString((byte[])stringcache.ToArray(typeof(byte)));
-			bytePointer++;
-
-			// string2 till /0
-
-			stringcache = new ArrayList();
-			while(inputBytes[bytePointer] != 0)
-			{
-				stringcache.Add(inputBytes[bytePointer]);
-				bytePointer++;
-			}
-			String2 = utf.GetString((byte[])stringcache.ToArray(typeof(byte)));
-			bytePointer++;
-
-			// Repeat if there's more data?
-			if(bytePointer != inputBytes.Length)
-			{
-				parent.OnError("Urk, extra data!");
-			}
-		}
-
-		internal enum SERVERDATA_sent
-		{
-			SERVERDATA_AUTH = 3,
-			SERVERDATA_EXECCOMMAND = 2,
-			None = 255
-		}
-
-		internal enum SERVERDATA_rec
-		{
-			SERVERDATA_RESPONSE_VALUE = 0,
-			SERVERDATA_AUTH_RESPONSE = 2,
-			None = 255
-		}
-
-		internal int RequestId {get; set;}
-		internal string String1 { get; set;}
-		internal string String2 { get; set; }
-		internal RCONPacket.SERVERDATA_sent ServerDataSent { get; set;}
-		internal RCONPacket.SERVERDATA_rec ServerDataReceived { get; set;}
-	}
 }
