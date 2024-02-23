@@ -116,8 +116,10 @@ namespace SourceRcon
 				OnError(ConnectionClosed);
 			}
 
-			if(requestSuccess)
-			ProcessIncomingData(state);
+			if (requestSuccess)
+			{
+				ProcessIncomingData(state);
+			}
 		}
 
 		void ProcessIncomingData(RequestState state)
@@ -147,6 +149,7 @@ namespace SourceRcon
 #if DEBUG
 					Console.WriteLine("Complete packet.");
 #endif
+					if (state.Data.Length < 1) return;
 
 					RCONPacket RetPack = new RCONPacket();
 					RetPack.ParseFromBytes(state.Data,this);

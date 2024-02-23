@@ -1,5 +1,7 @@
 using System;
+using System.Diagnostics;
 using System.Net;
+using System.Reflection;
 using System.Threading;
 using SourceRcon.Models;
 
@@ -35,6 +37,13 @@ namespace SourceRcon
             }
             else
             {
+                Console.WriteLine("Welcome to the Remote Console Application");
+                Console.WriteLine("Developed by Sterling Development");
+                Console.WriteLine($"Version: {Assembly.GetExecutingAssembly().GetName().Version.ToString()}");
+                Console.WriteLine("Start by entering an IP address");
+                Console.WriteLine("==========================================================");
+                Console.WriteLine();
+
                 commands.Interactive = true;
                 Console.WriteLine("Enter IP Address:");
                 commands.IpAddress = Console.ReadLine();
@@ -60,7 +69,16 @@ namespace SourceRcon
                     Console.WriteLine("Ready for commands:");
 				    while(true)
 				    {
-				    	rcon.ServerCommand(Console.ReadLine());
+				    	var command = Console.ReadLine();
+                        if (string.IsNullOrEmpty(command))
+                        {
+                            continue;
+                        }
+                        if (command.ToLower() == "quit")
+                        {
+                            Environment.Exit(0);
+                        }
+                        rcon.ServerCommand(command);
 				    }
                 }
                 else
