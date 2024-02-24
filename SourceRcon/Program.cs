@@ -57,12 +57,12 @@ namespace SourceRcon
                 commands.Password = Console.ReadLine();
                 commands.Command = null;
             }
-            var serverMessages = new MessageHelper();
+
             StringOutput errors = null;
             StringOutput serverMessage = null;
 			errors += new StringOutput(ErrorOutput);
 			serverMessage += new StringOutput(ConsoleOutput);
-            var rcon = new SourceRcon(serverMessages, errors, null);
+            var rcon = new SourceRcon(serverMessage, errors, null);
 
             if (rcon.Connect(new IPEndPoint(IPAddress.Parse(commands.IpAddress), commands.Port), commands.Password))
 			{

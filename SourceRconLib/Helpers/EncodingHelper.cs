@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static SourceRconLib.Helpers.MessageHelper;
 using static SourceRconLib.Models.RconPacket;
 
 namespace SourceRconLib.Helpers
@@ -17,7 +18,7 @@ namespace SourceRconLib.Helpers
             var utf = new UTF8Encoding();
 
             var byteString1 = utf.GetBytes(packet.String1);
-            var byteString2 = utf.GetBytes(packet.String2);
+            var byteString2 = utf.GetBytes(packet.String2 ?? "");
 
             var serverdata = BitConverter.GetBytes((int)packet.ServerDataSent);
             var reqid = BitConverter.GetBytes(packet.RequestId);
@@ -87,7 +88,7 @@ namespace SourceRconLib.Helpers
             // Repeat if there's more data?
             if (bytePointer != inputBytes.Length)
             {
-                MessageHelper.OnError("Urk, extra data!");
+                MessageHelper.OnError("Urk, extra data!", null);
             }
         }
     }

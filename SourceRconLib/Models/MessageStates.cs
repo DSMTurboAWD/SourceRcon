@@ -9,8 +9,8 @@ namespace SourceRconLib.Models
 {
     internal class MessageStates
     {
-        public event StringOutput ServerOutput { get; set; }
-        public event StringOutput _errors;
-        public event BoolInfo _connectionSuccess;
+        public event StringOutput ServerOutput;
+        public event StringOutput Errors;
+        public event BoolInfo ConnectionSuccess;
     }
 }
