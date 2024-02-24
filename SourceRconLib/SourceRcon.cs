@@ -20,6 +20,7 @@ namespace SourceRcon
 		{
 			Sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 			PacketCount = 0;
+			Connected = false;
 			_serverOutput= serverOutput;
 			_errors = errors;
 			_connectionSuccess = connectionSuccess;
@@ -29,6 +30,9 @@ namespace SourceRcon
         public event StringOutput _serverOutput;
         public event StringOutput _errors;
         public event BoolInfo _connectionSuccess;
+		public int PacketCount { get; set; }
+		public Socket Sock { get; set; }
+		public bool Connected { get; set; }
 
         public bool Connect(IPEndPoint Server, string password)
 		{
@@ -56,9 +60,9 @@ namespace SourceRcon
 			return true;
 		}
 
-		public void ServerCommand(string command, string? command2 = null)
+		public void ServerCommand(string command, string command2 = null)
 		{
-			if (connected)
+			if (Connected)
 			{
 				var PacketToSend = new RconPacket
 				{
@@ -77,27 +81,21 @@ namespace SourceRcon
 			Sock.BeginSend(Packet,0,Packet.Length,SocketFlags.None,new AsyncCallback(SendCallback),this);
 		}
 
-		bool connected;
-		public bool Connected
-		{
-			get { return connected; }
-		}
-
 		private void SendCallback(IAsyncResult result)
 		{
 			Sock.EndSend(result);
 		}
 
-		int PacketCount;
-
 		void StartGetNewPacket()
 		{
-			RequestState state = new RequestState();
-			state.IsPacketLength = true;
-			state.Data = new byte[4];
-			state.PacketCount = PacketCount;
+			var state = new RequestState
+			{
+                IsPacketLength = true,
+				Data = new byte[4],
+				PacketCount = PacketCount
+			};
+		
 			PacketCount++;
-
 			Sock.BeginReceive(state.Data,0,4,SocketFlags.None,new AsyncCallback(ReceiveCallback),state);
 		}
 
@@ -113,13 +111,12 @@ namespace SourceRcon
 				state.BytesSoFar += bytesgotten;
 				requestSuccess = true;
 
-				Console.WriteLine($"Receive Callback. Packet: {state.PacketCount} First packet: {state.IsPacketLength}, Bytes so far: {state.BytesSoFar}");
-
+				DisplayPacketMessage(state);
 
 			}
 			catch(SocketException)
 			{
-				MessageHelper.OnError(ConnectionClosed, _errors);
+				OnError(ConnectionClosed, _errors);
 			}
 
 			if (requestSuccess)
@@ -144,7 +141,6 @@ namespace SourceRcon
 			else
 			{
 				// Do something with data...
-
 				if(state.BytesSoFar < state.PacketLength)
 				{
 					// Missing data.
@@ -153,9 +149,6 @@ namespace SourceRcon
 				else
 				{
 					// Process data.
-#if DEBUG
-					Console.WriteLine("Complete packet.");
-#endif
 					if (state.Data.Length < 1) return;
 
 					var RetPack = new RconPacket();
@@ -177,40 +170,39 @@ namespace SourceRcon
 					if(packet.RequestId != -1)
 					{
 						// Connected.
-						connected = true;
+						Connected = true;
 						Console.WriteLine();
 						Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine(MessageHelper.ConnectionSuccessString);
+                        Console.WriteLine(ConnectionSuccessString);
 						Console.ResetColor();
                         Console.WriteLine("========================= Welcome ========================");
 						Console.WriteLine();						
-						MessageHelper.OnConnectionSuccess(true, _connectionSuccess);
+						OnConnectionSuccess(true, _connectionSuccess);
 					}
 					else
 					{
 						// Failed!
-						MessageHelper.OnError(ConnectionFailedString, _errors);
-						MessageHelper.OnConnectionSuccess(false, _connectionSuccess);
+						OnError(ConnectionFailedString, _errors);
+						OnConnectionSuccess(false, _connectionSuccess);
 					}
 					break;
 				case SERVERDATA_rec.SERVERDATA_RESPONSE_VALUE:
 					if (!string.IsNullOrEmpty(packet.String1))
 					{
 						// Real packet!
-						MessageHelper.OnServerOutput(packet.String1, _serverOutput);
-						if (!string.IsNullOrEmpty(packet.String2)) { MessageHelper.OnServerOutput(packet.String2, _serverOutput); }
+						OnServerOutput(packet.String1, _serverOutput);
+						if (!string.IsNullOrEmpty(packet.String2)) { OnServerOutput(packet.String2, _serverOutput); }
 					}
 					else
 					{
-						MessageHelper.OnError(GotJunkPacket, _errors);
+						OnError(GotJunkPacket, _errors);
 					}
 					break;
 				default:
-					MessageHelper.OnError(UnknownResponseType, _errors);
+					OnError(UnknownResponseType, _errors);
 					break;
 			}
 		}
 
-		Socket Sock;
 	}
 }

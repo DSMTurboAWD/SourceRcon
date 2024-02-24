@@ -1,4 +1,5 @@
 ﻿using SourceRcon;
+using SourceRconLib.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +20,17 @@ namespace SourceRconLib.Helpers
 
         public delegate void StringOutput(string output);
         public delegate void BoolInfo(bool info);
+
+        internal static void DisplayWelcomeMessage()
+        {
+
+        }
+
+        internal static void DisplayPacketMessage(RequestState state)
+        {
+            Console.WriteLine($"Receive Callback. Packet: {state.PacketCount} First packet: {state.IsPacketLength}, Bytes so far: {state.BytesSoFar}");
+
+        }
 
         internal static void OnServerOutput(string output, StringOutput ServerOutput)
         {
