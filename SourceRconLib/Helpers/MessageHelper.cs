@@ -10,9 +10,6 @@ namespace SourceRconLib.Helpers
     public class MessageHelper
     {
 
-        public event StringOutput ServerOutput;
-        public event StringOutput Errors;
-        public event BoolInfo ConnectionSuccess;
 
         public static string ConnectionClosed = "Connection closed by remote host";
         public static string ConnectionSuccessString = "Connection Succeeded!";
