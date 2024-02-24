@@ -22,4 +22,4 @@ namespace SourceRconLib.Models
         public byte[] Data { get; set; }
     }
 }
-}
+

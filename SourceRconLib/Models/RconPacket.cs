@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SourceRconLib.Models
 {
-    internal class RconPacket
+    public class RconPacket
     {
         internal enum SERVERDATA_sent
         {

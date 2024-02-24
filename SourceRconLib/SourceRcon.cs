@@ -6,6 +6,8 @@ using System.Collections;
 using SourceRconLib.Models;
 using Microsoft.VisualBasic;
 using static SourceRconLib.Models.RconPacket;
+using SourceRconLib.Helpers;
+using static SourceRconLib.Helpers.MessageHelper;
 
 namespace SourceRcon
 {
@@ -14,14 +16,21 @@ namespace SourceRcon
 	/// </summary>
 	public class SourceRcon
 	{
-        public SourceRcon()
+        public SourceRcon(StringOutput serverOutput, StringOutput errors, BoolInfo connectionSuccess)
 		{
 			Sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 			PacketCount = 0;
+			_serverOutput= serverOutput;
+			_errors = errors;
+			_connectionSuccess = connectionSuccess;
 
 		}
 
-		public bool Connect(IPEndPoint Server, string password)
+        public event StringOutput _serverOutput;
+        public event StringOutput _errors;
+        public event BoolInfo _connectionSuccess;
+
+        public bool Connect(IPEndPoint Server, string password)
 		{
 			try
 			{
@@ -29,8 +38,8 @@ namespace SourceRcon
 			}
 			catch(SocketException)
 			{
-				OnError(ConnectionFailedString);
-				OnConnectionSuccess(false);
+				OnError(ConnectionFailedString, _serverOutput);
+				OnConnectionSuccess(false, _connectionSuccess);
 				return false;
 			}
 
@@ -64,7 +73,7 @@ namespace SourceRcon
 	
 		void SendRCONPacket(RconPacket packet)
 		{
-			var Packet = packet.OutputAsBytes();
+			var Packet = EncodingHelper.OutputAsBytes(packet);
 			Sock.BeginSend(Packet,0,Packet.Length,SocketFlags.None,new AsyncCallback(SendCallback),this);
 		}
 
@@ -110,7 +119,7 @@ namespace SourceRcon
 			}
 			catch(SocketException)
 			{
-				OnError(ConnectionClosed);
+				MessageHelper.OnError(ConnectionClosed, _errors);
 			}
 
 			if (requestSuccess)
@@ -150,7 +159,7 @@ namespace SourceRcon
 					if (state.Data.Length < 1) return;
 
 					var RetPack = new RconPacket();
-					RetPack.ParseFromBytes(state.Data,this);
+					EncodingHelper.ParseFromBytes(state.Data,RetPack);
 
 					ProcessResponse(RetPack);
 
@@ -171,75 +180,37 @@ namespace SourceRcon
 						connected = true;
 						Console.WriteLine();
 						Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine(ConnectionSuccessString);
+                        Console.WriteLine(MessageHelper.ConnectionSuccessString);
 						Console.ResetColor();
                         Console.WriteLine("========================= Welcome ========================");
 						Console.WriteLine();						
-						OnConnectionSuccess(true);
+						MessageHelper.OnConnectionSuccess(true, _connectionSuccess);
 					}
 					else
 					{
 						// Failed!
-						OnError(ConnectionFailedString);
-						OnConnectionSuccess(false);
+						MessageHelper.OnError(ConnectionFailedString, _errors);
+						MessageHelper.OnConnectionSuccess(false, _connectionSuccess);
 					}
 					break;
 				case SERVERDATA_rec.SERVERDATA_RESPONSE_VALUE:
 					if (!string.IsNullOrEmpty(packet.String1))
 					{
 						// Real packet!
-						OnServerOutput(packet.String1);
-						if (!string.IsNullOrEmpty(packet.String2)) { OnServerOutput(packet.String2); }
+						MessageHelper.OnServerOutput(packet.String1, _serverOutput);
+						if (!string.IsNullOrEmpty(packet.String2)) { MessageHelper.OnServerOutput(packet.String2, _serverOutput); }
 					}
 					else
 					{
-						OnError(GotJunkPacket);
+						MessageHelper.OnError(GotJunkPacket, _errors);
 					}
 					break;
 				default:
-					OnError(UnknownResponseType);
+					MessageHelper.OnError(UnknownResponseType, _errors);
 					break;
 			}
 		}
 
-		internal void OnServerOutput(string output)
-		{
-			if(ServerOutput != null)
-			{
-				ServerOutput(output);
-			}
-		}
-
-		internal void OnError(string error)
-		{
-			if(Errors != null)
-			{
-				Errors(error);
-			}
-		}
-
-		internal void OnConnectionSuccess(bool info)
-		{
-			if(ConnectionSuccess != null)
-			{
-				ConnectionSuccess(info);
-			}
-		}
-
-		public event StringOutput ServerOutput;
-		public event StringOutput Errors;
-		public event BoolInfo ConnectionSuccess;
-
-		public static string ConnectionClosed = "Connection closed by remote host";
-		public static string ConnectionSuccessString = "Connection Succeeded!";
-		public static string ConnectionFailedString = "Connection Failed!";
-		public static string UnknownResponseType = "Unknown response";
-		public static string GotJunkPacket = "Had junk packet. This is normal.";
-
 		Socket Sock;
 	}
-
-	public delegate void StringOutput(string output);
-	public delegate void BoolInfo(bool info);
-
 }

@@ -4,17 +4,21 @@ using System.Net;
 using System.Reflection;
 using System.Threading;
 using SourceRcon.Models;
-
+using SourceRconLib.Helpers;
+using static SourceRconLib.Helpers.MessageHelper;
 
 namespace SourceRcon
 {
 	class Program
 	{
-		[STAThread]
+
+
+        [STAThread]
 		static void Main(string[] args)
 		{
 
             var commands = new Commands();
+
             if (args.Length > 0)
             {
                 if (args.Length == 4)
@@ -53,10 +57,12 @@ namespace SourceRcon
                 commands.Password = Console.ReadLine();
                 commands.Command = null;
             }
-
-			var rcon = new SourceRcon();
-			rcon.Errors += new StringOutput(ErrorOutput);
-			rcon.ServerOutput += new StringOutput(ConsoleOutput);
+            var serverMessages = new MessageHelper();
+            StringOutput errors = null;
+            StringOutput serverMessage = null;
+			errors += new StringOutput(ErrorOutput);
+			serverMessage += new StringOutput(ConsoleOutput);
+            var rcon = new SourceRcon(serverMessages, errors, null);
 
             if (rcon.Connect(new IPEndPoint(IPAddress.Parse(commands.IpAddress), commands.Port), commands.Password))
 			{

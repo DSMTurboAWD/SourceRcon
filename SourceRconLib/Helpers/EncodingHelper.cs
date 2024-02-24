@@ -1,15 +1,17 @@
 ﻿using SourceRconLib.Models;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static SourceRconLib.Models.RconPacket;
 
 namespace SourceRconLib.Helpers
 {
     public class EncodingHelper
     {
-        internal byte[] OutputAsBytes(RconPacket packet)
+        public static byte[] OutputAsBytes(RconPacket packet)
         {
 
             var utf = new UTF8Encoding();
@@ -18,7 +20,7 @@ namespace SourceRconLib.Helpers
             var byteString2 = utf.GetBytes(packet.String2);
 
             var serverdata = BitConverter.GetBytes((int)packet.ServerDataSent);
-            var reqid = BitConverter.GetBytes(RequestId);
+            var reqid = BitConverter.GetBytes(packet.RequestId);
 
             // Compose into one packet.
             var FinalPacket = new byte[4 + 4 + 4 + byteString1.Length + 1 + byteString2.Length + 1];
@@ -49,17 +51,17 @@ namespace SourceRconLib.Helpers
             return FinalPacket;
         }
 
-        internal void ParseFromBytes(this,  byte[] inputBytes)
+        public static void ParseFromBytes(byte[] inputBytes, RconPacket packet)
         {
             var bytePointer = 0;
 
             var utf = new UTF8Encoding();
 
             // First 4 bytes are ReqId.
-            RequestId = BitConverter.ToInt32(inputBytes, bytePointer);
+            packet.RequestId = BitConverter.ToInt32(inputBytes, bytePointer);
             bytePointer += 4;
             // Next 4 are server data.
-            ServerDataReceived = (SERVERDATA_rec)BitConverter.ToInt32(inputBytes, bytePointer);
+            packet.ServerDataReceived = (SERVERDATA_rec)BitConverter.ToInt32(inputBytes, bytePointer);
             bytePointer += 4;
             // string1 till /0
             var stringcache = new ArrayList();
@@ -68,7 +70,7 @@ namespace SourceRconLib.Helpers
                 stringcache.Add(inputBytes[bytePointer]);
                 bytePointer++;
             }
-            String1 = utf.GetString((byte[])stringcache.ToArray(typeof(byte)));
+            packet.String1 = utf.GetString((byte[])stringcache.ToArray(typeof(byte)));
             bytePointer++;
 
             // string2 till /0
@@ -79,13 +81,13 @@ namespace SourceRconLib.Helpers
                 stringcache.Add(inputBytes[bytePointer]);
                 bytePointer++;
             }
-            String2 = utf.GetString((byte[])stringcache.ToArray(typeof(byte)));
+            packet.String2 = utf.GetString((byte[])stringcache.ToArray(typeof(byte)));
             bytePointer++;
 
             // Repeat if there's more data?
             if (bytePointer != inputBytes.Length)
             {
-                parent.OnError("Urk, extra data!");
+                MessageHelper.OnError("Urk, extra data!");
             }
         }
     }
