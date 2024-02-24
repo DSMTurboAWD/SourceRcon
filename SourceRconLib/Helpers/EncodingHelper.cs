@@ -12,6 +12,11 @@ namespace SourceRconLib.Helpers
 {
     public class EncodingHelper
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="packet"><see cref="RconPacket"/>Packet of data to be encoded for transport</param>
+        /// <returns></returns>
         public static byte[] OutputAsBytes(RconPacket packet)
         {
 
@@ -52,6 +57,11 @@ namespace SourceRconLib.Helpers
             return FinalPacket;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="inputBytes"></param>
+        /// <param name="packet"></param>
         public static void ParseFromBytes(byte[] inputBytes, RconPacket packet)
         {
             var bytePointer = 0;
